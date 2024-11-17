@@ -4,12 +4,11 @@ from typing import Optional, Tuple
 import torch
 from torch import nn
 import transformers
-from xformers import ops as xops
 
 import math
 from transformers.models.llama.modeling_llama import LlamaRotaryEmbedding, LlamaLinearScalingRotaryEmbedding, LlamaDynamicNTKScalingRotaryEmbedding, apply_rotary_pos_emb
 from transformers.models.roberta.modeling_roberta import create_position_ids_from_input_ids
-
+import torch.nn.functional as F
 
 group_size_ratio = 1/4
 use_flash_attn = False 
@@ -312,7 +311,8 @@ class SelfAttention(nn.Module):
                 attn_bias = attention_mask
             # Flash attention implemented by Meta
             attn_bias = attn_bias.to(query_layer.dtype)
-            attn_output = xops.memory_efficient_attention(query_layer, key_layer, value_layer, attn_bias=attn_bias, p=0.0)
+            attn_output = F.scale_dot_product_attention(query_layer, key_layer, value_layer, attn_bias=attn_bias, p=0.0)
+            
         else:
             attn_output, attn_weights = self._attn(query_layer, key_layer, value_layer, attention_mask, head_mask)
 
